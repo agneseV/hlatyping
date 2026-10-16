@@ -20,6 +20,7 @@ include { HLAHD                  } from '../modules/local/hlahd/genotype'
 include { HLALA_PREPAREGRAPH     } from '../modules/nf-core/hlala/preparegraph/main'
 include { IMMUNOTYPE             } from '../modules/local/immunotype/main'
 include { SUMMARIZE_TYPING       } from '../modules/local/summarize/main'
+include { BAM_HLA_PREPROCESSING  } from '../subworkflows/local/bam_hla_preprocessing'
 
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -99,28 +100,53 @@ workflow HLATYPING {
     //
     CAT_FASTQ(ch_input_files.fastq_multiple).reads.set { ch_cat_fastq }
 
-    // determine BAM pairedness for fastq conversion
-    CHECK_PAIRED(ch_bam.for_fastq_conversion)
-    CHECK_PAIRED.out.reads
-        .map { meta, reads, single_end ->
-            meta["single_end"] = single_end.text.toBoolean()
-            [meta, reads]
-        }
-        .set { ch_bam_pe_corrected }
+    ch_bam_fastq = channel.empty()
+
+    // Optional BAM preprocessing only replaces the BAM -> FASTQ conversion path.
+    // BAM-native callers (HLA*LA and SpecHLA) continue to receive the original BAM.
+    if (params.preprocessing) {
+
+        def ch_preprocessing_bed = channel.value([
+            [:],
+            file(params.preprocessing, checkIfExists: true)
+        ])
+
+        BAM_HLA_PREPROCESSING(
+            ch_bam.for_fastq_conversion,
+            ch_preprocessing_bed,
+        )
+
+        ch_bam_fastq = BAM_HLA_PREPROCESSING.out.reads
+    }
+    else {
+
+        // Determine BAM pairedness for fastq conversion
+        CHECK_PAIRED(ch_bam.for_fastq_conversion)
+
+        CHECK_PAIRED.out.reads
+            .map { meta, reads, single_end ->
+                meta["single_end"] = single_end.text.toBoolean()
+                [meta, reads]
+            }
+            .set { ch_bam_pe_corrected }
+
+        // Paired-end reads should not be interleaved
+        def interleave = false
+
+        SAMTOOLS_COLLATEFASTQ(
+            ch_bam_pe_corrected,
+            ch_bam_pe_corrected.map { meta, _files ->
+                [[id: meta.id], [], []]
+            },
+            interleave,
+        )
+
+        ch_bam_fastq = SAMTOOLS_COLLATEFASTQ.out.fastq
+    }
 
     //
-    // MODULE: Run COLLATEFASTQ
+    // Combine FASTQ inputs from all input types
     //
-    //  paired-end reads should not be interleaved
-    def interleave = false
-
-    SAMTOOLS_COLLATEFASTQ(
-        ch_bam_pe_corrected,
-        ch_bam_pe_corrected.map { meta, _files -> [[id: meta.id], [], []] },
-        interleave,
-    )
-    SAMTOOLS_COLLATEFASTQ.out.fastq.set { ch_bam_fastq }
-
     ch_input_files.fastq_single
         .mix(ch_cat_fastq, ch_bam_fastq)
         .set { ch_all_fastq }

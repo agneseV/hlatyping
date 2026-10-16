@@ -38,6 +38,23 @@
                 }
             }
         },
+        "preprocessing_options": {
+            "title": "BAM preprocessing options",
+            "type": "object",
+            "description": "Optional enrichment of BAM input before conversion to FASTQ for read-based HLA callers.",
+            "fa_icon": "fas fa-filter",
+            "properties": {
+                "preprocessing": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^\\S+\\.bed$",
+                    "fa_icon": "fas fa-map",
+                    "description": "BED file defining HLA/MHC regions used to preprocess BAM input.",
+                    "help_text": "When supplied, BAM input is reduced to primary non-duplicate reads overlapping these regions, including their mates, plus fully unmapped read pairs before BAM-to-FASTQ conversion. Example: --preprocessing hla.hg19.bed"
+                }
+             }
+        },
         "hlatyping_options": {
             "title": "HLA typing options",
             "type": "object",
@@ -358,6 +375,9 @@
     "allOf": [
         {
             "$ref": "#/$defs/input_output_options"
+        },
+        {
+            "$ref": "#/$defs/preprocessing_options"
         },
         {
             "$ref": "#/$defs/hlatyping_options"
