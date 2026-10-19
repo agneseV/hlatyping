@@ -125,6 +125,15 @@
                     "description": "Tarball file location of HLA-HD software distribution.",
                     "help_text": "Path to the installation tarball of HLA-HD. You need to provide this tarball to run HLA-HD. Obtain a licensed copy from https://w3.genome.med.kyoto-u.ac.jp/HLA-HD/"
                 },
+                "hlahd_install_dir": {
+                    "type": "string",
+                    "default": null,
+                    "format": "directory-path",
+                    "exists": true,
+                    "fa_icon": "fas fa-folder-open",
+                    "description": "Path to an existing HLA-HD installation directory.",
+                    "help_text": "Optional path to a previously installed HLA-HD directory containing bin/, dictionary/, freq_data/, and HLA_gene.split.3.50.0.txt. If provided, the HLAHD_INSTALL process is skipped and this installation is used for genotyping."
+                 },
                 "hlahd_update_reference_dict": {
                     "type": "boolean",
                     "default": false,

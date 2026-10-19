@@ -255,10 +255,22 @@ workflow HLATYPING {
             params.hlahd_update_reference_dict,
         ])
 
-        HLAHD_INSTALL(ch_hlahd_install)
-        HLAHD(ch_all_fastq.combine(HLAHD_INSTALL.out.hlahd))
-        ch_typings = ch_typings.mix(HLAHD.out.hla.map { meta, f -> [meta.id, 'hlahd', f] })
-    }
+        def ch_hlahd_dir
+
+        if (params.hlahd_install_dir) {
+            // Use a persistent, previously installed HLA-HD directory
+            ch_hlahd_dir = Channel.value(
+                file(params.hlahd_install_dir, checkIfExists: true)
+            )
+        } else {
+            // Existing behavior: install from the supplied tarball
+            HLAHD_INSTALL(ch_hlahd_install)
+            ch_hlahd_dir = HLAHD_INSTALL.out.hlahd
+        }
+
+        HLAHD(ch_all_fastq.combine(ch_hlahd_dir))
+            ch_typings = ch_typings.mix(HLAHD.out.hla.map { meta, f -> [meta.id, 'hlahd', f] })
+        }
 
     if ( "hlala" in tool_list ) {
         //

@@ -1,6 +1,10 @@
 process HLAHD_INSTALL {
     label 'process_single'
 
+    publishDir "${params.outdir}/",
+        mode: 'copy',
+        enabled: { update_dict }
+
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container
         ? 'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/7e/7e050dc8ccc26b39fe2080e2b8d702b13851d260a702609b8941b57bafd84468/data'
@@ -46,7 +50,7 @@ process HLAHD_INSTALL {
 
     # UPDATE THE DICTIONARY IF REQUESTED
     if [ $update_dict_flag -eq 1 ]; then
-        sh update_dictionary.sh
+        sh update.dictionary.sh
     fi
 
     cd ../../
