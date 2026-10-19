@@ -13,7 +13,10 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 - [cat](#cat) - Merge FastQ files
 - [FastQC](#fastqc) - Raw read QC
 - [OptiType](#optitype) - HLA genotyping based on integer linear programming
-- [HLA-HD](#hlahd) - HLA Class I + II genotyping (optional, requires a local installation of HLA-HD)
+- [HLA-HD](#hla-hd) - HLA Class I + II genotyping (optional, requires a local installation of HLA-HD)
+- [HLA\*LA](#hlala) - HLA typing from BAM files using a graph-based approach (optional)
+- [SpecHLA](#spechla) - HLA Class I + II genotyping from a genome-aligned BAM
+- [Summary](#summary) - Harmonized HLA typing table across all tools
 - [MultiQC](#multiqc) - Aggregate report describing results from the whole pipeline
 - [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
 
@@ -47,7 +50,7 @@ If multiple libraries/runs have been provided for the same sample in the input s
 [OptiType](https://github.com/FRED-2/OptiType) is an HLA genotyping algorithm based on linear integer programming. It provides accurate 4-digit HLA genotyping predictions from NGS data.
 For further reading and documentation see the [OptiType documentation](https://github.com/FRED-2/OptiType).
 
-The pipeline results contain a CSV file with the predicted HLA genotype. Each line contains one solution with the predicted HLA alleles in 4-digit nomenclature, the number of reads that are covered by this solution and the objective function value. If the number of enumerations (--enumerate N) is higher than 1, the CSV file will contain the optimal and sub-optimal solutions.
+The pipeline results contain a CSV file with the predicted HLA genotype. Each line contains one solution with the predicted HLA alleles in 4-digit nomenclature, the number of reads that are covered by this solution and the objective function value. If the number of enumerations (`--optitype_enumerations N`) is higher than 1, the CSV file will contain the optimal and sub-optimal solutions.
 
 ```tsv
     A1  A2  B1  B2  C1  C2  Reads   Objective
@@ -84,6 +87,72 @@ DPB1  DPB1*04:01:01:01  DPB1*04:02:01:01
 - `{prefix}_{timestamp}_coverage_plot.pdf`
   - pdf file, containing a coverage plot of the predicted alleles
 
+### HLA\*LA
+
+[HLA\*LA](https://github.com/DiltheyLab/HLA-LA) (HLA typing using a graph-based reference) performs HLA typing directly from BAM files using a population reference graph of the MHC region. It supports typing of Class I and Class II HLA alleles.
+
+> **Note:** HLA\*LA requires BAM file input and will only run for samples that provide a BAM file in the samplesheet. The tool uses a large graph reference (~5 GB) that is either downloaded automatically or provided by the user.
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `hlala/`
+  - `<sample_id>/`: Directory containing HLA\*LA typing results including:
+    - `hla/R1_bestguess_G.txt`: Best-guess HLA genotype calls at G-group resolution.
+    - `hla/R1_bestguess.txt`: Best-guess HLA genotype calls.
+    - `reads_per_level.txt`: Read counts at each level of the typing hierarchy.
+
+</details>
+
+### SpecHLA
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `spechla/<sample>/`
+  - `hla.result.txt`: the per-locus 4-field HLA typing calls.
+  - `hla.result.details.txt`, `hla.result.g.group.txt`: detailed and G-group calls.
+  - `HLA_*_freq.txt`, `HLA_*_break_points_spechap.txt`: per-locus frequency and breakpoint files.
+
+</details>
+
+[SpecHLA](https://github.com/deepomicslab/SpecHLA) types HLA reads extracted
+from a genome-aligned BAM.
+
+Notes:
+
+- SpecHLA requires BAM input. Combining `--tools spechla` with any FASTQ-only sample fails the run at parameter validation.
+- SpecHLA runs in exon typing mode (`-u 1`) for every sample, which is correct for WES and RNA-seq. Whole-genome users can override to full-length mode (`-u 0`) — see the [SpecHLA section](usage.md#spechla) in `docs/usage.md`.
+
+### Immunotype
+
+[Immunotype](https://github.com/AG-Walz/immunotype) predicts HLA class I alleles directly from a list of immunopeptidomics peptide sequences. It takes the `tsv` samplesheet column as input (MHCquant-style or a headerless peptide list — see the [usage docs](usage.md#samplesheet-input)) and is selected via `--tools immunotype`.
+
+**Output directory: `immunotype/`**
+
+- `{prefix}_typing.tsv` — two-column TSV with the predicted HLA class I alleles joined by `;`
+
+```tsv
+sample  typing
+sample_0  HLA-A*02:01;HLA-A*24:02;HLA-B*51:08;HLA-C*04:01;HLA-C*16:02
+```
+
+### Summary
+
+`hlatyping_results.tsv`, at the top level of the results directory, harmonizes every selected tool's calls into one table — one row per sample and tool. Alleles are parsed with [mhcgnomes](https://github.com/pirl-unc/mhcgnomes) (keeping the `HLA-` prefix) and given at full resolution and 2-field, with class I and II in separate columns. They are `;`-joined; homozygous loci appear twice; `NA` marks a class a tool does not report.
+
+| Column                               | Description                                                         |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| `sample`                             | Sample identifier                                                   |
+| `predictor`                          | Typing tool (`optitype`, `hlahd`, `hlala`, `spechla`, `immunotype`) |
+| `class_I` / `class_II`               | Class I / II calls at full resolution                               |
+| `class_I_2field` / `class_II_2field` | The same calls truncated to 2-field                                 |
+
+```tsv
+sample    predictor  class_I                                  class_I_2field          class_II  class_II_2field
+sample_0  optitype   HLA-A*01:01;HLA-A*01:01;HLA-B*08:01;...   HLA-A*01:01;...         NA        NA
+```
+
 ### MultiQC
 
 <details markdown="1">
@@ -113,4 +182,4 @@ Results generated by MultiQC collate pipeline QC from supported tools e.g. FastQ
 
 </details>
 
-[Nextflow](https://www.nextflow.io/docs/latest/tracing.html) provides excellent functionality for generating various reports relevant to the running and execution of the pipeline. This will allow you to troubleshoot errors with the running of the pipeline, and also provide you with other information such as launch commands, run times and resource usage.
+[Nextflow](https://docs.seqera.io/platform-cloud/reports/overview) provides excellent functionality for generating various reports relevant to the running and execution of the pipeline. This will allow you to troubleshoot errors with the running of the pipeline, and also provide you with other information such as launch commands, run times and resource usage.

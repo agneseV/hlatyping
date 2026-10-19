@@ -1,6 +1,10 @@
 process HLAHD_INSTALL {
     label 'process_single'
 
+    publishDir "${params.outdir}/",
+        mode: 'copy',
+        enabled: { update_dict }
+
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container
         ? 'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/7e/7e050dc8ccc26b39fe2080e2b8d702b13851d260a702609b8941b57bafd84468/data'
@@ -35,10 +39,18 @@ process HLAHD_INSTALL {
 
     cd "${toolname}/${toolversion}"
     sh install.sh
+    
+    # binaries use only baseline x86-64 instructions; remove inherited v3 ISA tag from sysroot objects
+    OBJCOPY=\$(command -v x86_64-conda-linux-gnu-objcopy || echo /opt/conda/bin/x86_64-conda-linux-gnu-objcopy)
+    echo "objcopy: \$OBJCOPY, cwd: \$PWD" >&2
+    for binary in split_shell get_diff_fasta stfr split_pm_read pick_up_allele pm_extract hla_est drop_intron_map; do
+        "\$OBJCOPY" --remove-section .note.gnu.property "bin/\$binary"
+    done
+    x86_64-conda-linux-gnu-readelf -n bin/stfr | grep -q 'ISA needed' && { echo "ISA tag still present" >&2; exit 1; }
 
     # UPDATE THE DICTIONARY IF REQUESTED
     if [ $update_dict_flag -eq 1 ]; then
-        sh update_dictionary.sh
+        sh update.dictionary.sh
     fi
 
     cd ../../

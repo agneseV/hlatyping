@@ -18,7 +18,7 @@ concurrency:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  NFT_VER: "0.9.3"
+  NFT_VER: "0.9.4"
   NFT_WORKDIR: "~"
   NXF_ANSI_LOG: false
   NXF_SINGULARITY_CACHEDIR: ${{ github.workspace }}/.singularity
@@ -40,7 +40,7 @@ jobs:
           rm -rf ./* || true
           rm -rf ./.??* || true
           ls -la ./
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -78,14 +78,14 @@ jobs:
           - isMain: false
             profile: "singularity"
         NXF_VER:
-          - "25.04.2"
+          - "25.10.4"
           - "latest-everything"
     env:
       NXF_ANSI_LOG: false
       TOTAL_SHARDS: ${{ needs.nf-test-changes.outputs.total_shards }}
 
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -132,6 +132,22 @@ jobs:
           name: pr-comment-fragment-${{ strategy.job-index }}
           path: pr-comment-fragment/
 
+      # continue-on-error keeps latest-everything from failing the job, so it never shows up in
+      # `needs.nf-test.result` downstream and CI stays green. Surface it via a PR comment instead;
+      # other NXF_VER failures already fail the job/CI directly, so no comment is needed for those.
+      - name: Prepare PR comment fragment
+        if: ${{ always() && steps.run_nf_test.outcome == 'failure' && matrix.NXF_VER == 'latest-everything' }}
+        run: |
+          mkdir -p pr-comment-fragment
+          echo "* ❌ \`${{ matrix.profile }}\` | \`${{ matrix.NXF_VER }}\` | Shard ${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}" > pr-comment-fragment/fragment.md
+
+      - name: Upload PR comment fragment
+        if: ${{ always() && steps.run_nf_test.outcome == 'failure' && matrix.NXF_VER == 'latest-everything' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: pr-comment-fragment-${{ strategy.job-index }}
+          path: pr-comment-fragment/
+
   hlahd:
     name: Run HLA-HD tests
     if: ${{ ( github.event_name == 'push' && github.repository == 'nf-core/hlatyping' ) || github.event.pull_request.head.repo.full_name == 'nf-core/hlatyping' }}
@@ -142,7 +158,7 @@ jobs:
       fail-fast: false
       matrix:
         NXF_VER:
-          - "25.04.2"
+          - "25.10.4"
           - "latest-everything"
     steps:
       - name: Check out pipeline code
