@@ -2,11 +2,18 @@ lint:
   files_unchanged:
     - docs/images/nf-core-hlatyping_logo_dark.png
     - assets/nf-core-hlatyping_logo_light.png
+<<<<<<< HEAD
     - .prettierignore
   nf_test_content:
     - nf-test.config
   schema_params: false
 nf_core_version: 4.1.0
+=======
+    - .github/workflows/branch.yml
+    - .github/workflows/linting.yml
+  files_exist:
+    - .github/workflows/linting_comment.yml
+>>>>>>> master
 repository_type: pipeline
 template:
   author: Christopher Mohr, Alexander Peltzer, Sven Fillinger
