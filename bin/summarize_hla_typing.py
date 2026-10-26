@@ -18,7 +18,7 @@ GENE_CLASS = {g: "I" for g in CLASS_I_ORDER}
 GENE_CLASS.update({g: "II" for g in CLASS_II_ORDER})
 GENE_ORDER = {g: i for i, g in enumerate(CLASS_I_ORDER + CLASS_II_ORDER)}
 
-TOOLS = ["optitype", "hlahd", "hlala", "spechla", "immunotype"]
+TOOLS = ["optitype", "hlahd", "hlala", "spechla", "immunotype", "arcashla"]
 PLACEHOLDERS = {"-", "", "not typed", "couldn't read result.", "na"}
 
 
@@ -114,6 +114,34 @@ def extract_immunotype(path: str) -> list[str]:
         return []
     return [tok.strip() for tok in data[1].split(";")]
 
+def extract_arcashla(path: str) -> list[str]:
+    """Read allele tokens from an arcasHLA genotype TSV.
+
+    Supports the output of both 'arcasHLA merge' and
+    'arcasHLA convert'. Each input file contains one sample.
+
+    Args:
+        path: Path to the sample-specific arcasHLA TSV.
+
+    Returns:
+        HLA allele tokens across all reported loci.
+    """
+    with open(path, newline="") as fh:
+        reader = csv.DictReader(fh, delimiter="\t")
+        row = next(reader, None)
+
+    if row is None:
+        return []
+
+    return [
+        allele.strip()
+        for gene, allele in row.items()
+        if gene != "subject"
+        and allele
+        and allele.strip()
+        and allele.strip().lower() != "nan"
+    ]
+
 
 EXTRACTORS = {
     "optitype": extract_optitype,
@@ -121,6 +149,7 @@ EXTRACTORS = {
     "hlala": extract_hlala,
     "spechla": extract_spechla,
     "immunotype": extract_immunotype,
+    "arcashla": extract_arcashla,
 }
 
 

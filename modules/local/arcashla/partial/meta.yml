@@ -1,0 +1,24 @@
+name: ARCASHLA_PARTIAL
+description: Optional arcasHLA partial allele typing after genotype
+keywords: [hla, genotyping, rnaseq]
+tools:
+  - arcashla:
+      description: arcasHLA HLA typing
+      homepage: https://github.com/RabadanLab/arcasHLA
+input:
+  - - meta:
+        type: map
+        description: Sample metadata
+    - reads:
+        type: file
+        description: List of one or two FASTQ files
+    - genotype:
+        type: file
+        description: genotype JSON from ARCASHLA_GENOTYPE
+output:
+  - partial_genotype:
+      type: file
+      pattern: '*.partial_genotype.json'
+  - versions:
+      type: file
+      pattern: versions.yml

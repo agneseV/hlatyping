@@ -21,6 +21,9 @@ include { HLALA_PREPAREGRAPH     } from '../modules/nf-core/hlala/preparegraph/m
 include { IMMUNOTYPE             } from '../modules/local/immunotype/main'
 include { SUMMARIZE_TYPING       } from '../modules/local/summarize/main'
 include { BAM_HLA_PREPROCESSING  } from '../subworkflows/local/bam_hla_preprocessing'
+include { ARCASHLA_GENOTYPE      } from '../modules/local/arcashla/genotype/main'
+include { ARCASHLA_PARTIAL       } from '../modules/local/arcashla/partial/main'
+include { ARCASHLA_MERGE         } from '../modules/local/arcashla/merge/main'
 
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -328,6 +331,36 @@ workflow HLATYPING {
                 [meta.id, 'hlala', (files instanceof List ? files : [files]).find { it.name == 'R1_bestguess_G.txt' }]
             }
         )
+    }
+
+    if ( "arcashla" in tool_list ) {
+    //
+    // Run ARCASHLA_GENOTYOE module
+    //
+
+    ARCASHLA_GENOTYPE(ch_all_fastq)
+
+        if (params.arcashla_partial) {
+            reads_and_genotype = ch_all_fastq
+                .join(ARCASHLA_GENOTYPE.out.genotype, by: 0)
+                .map { meta, reads, genotype -> tuple(meta, reads, genotype) }
+            ARCASHLA_PARTIAL(reads_and_genotype)
+        }
+
+
+     //
+     // Run ARCASHLA_MERGE
+     //
+    
+     ARCASHLA_MERGE(ARCASHLA_GENOTYPE.out.genotype)
+
+    ch_typings = ch_typings.mix(
+        ARCASHLA_MERGE.out.genotypes.map { meta, f ->
+            [meta.id, 'arcashla', f]
+        }
+    )
+
+
     }
 
     //

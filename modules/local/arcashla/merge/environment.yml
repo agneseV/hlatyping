@@ -1,0 +1,6 @@
+name: arcashla_merge
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bioconda::arcas-hla=0.6.0

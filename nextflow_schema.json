@@ -184,6 +184,15 @@
                 }
             }
         },
+        "arcashla_options": {
+            "properties" : {
+                "arcashla_partial": {
+                    "type": "boolean",
+                    "description": "Enable optional arcasHLA partial-allele genotyping",
+                    "default": false
+                }
+            }
+        },
         "reference_genome_options": {
             "title": "Reference genome options",
             "type": "object",
@@ -402,6 +411,9 @@
         },
         {
             "$ref": "#/$defs/immunotype_options"
+        },
+        {
+            "$ref": "#/$defs/arcashla_options"
         },
         {
             "$ref": "#/$defs/reference_genome_options"

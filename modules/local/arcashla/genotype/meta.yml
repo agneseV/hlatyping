@@ -1,0 +1,22 @@
+name: ARCASHLA_GENOTYPE
+description: HLA genotyping using arcasHLA v0.6.0 from preprocessed RNA-seq FASTQs
+keywords: [hla, genotyping, rnaseq]
+tools:
+  - arcashla:
+      description: arcasHLA HLA typing
+      homepage: https://github.com/RabadanLab/arcasHLA
+      documentation: https://github.com/RabadanLab/arcasHLA/blob/v0.6.0/README.md
+input:
+  - - meta:
+        type: map
+        description: Sample metadata with id and single_end
+    - reads:
+        type: file
+        description: List of one or two FASTQ files
+output:
+  - genotype:
+      type: file
+      pattern: '*.genotype.json'
+  - versions:
+      type: file
+      pattern: versions.yml
