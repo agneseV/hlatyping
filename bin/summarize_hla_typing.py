@@ -55,7 +55,14 @@ def extract_hlahd(path: str) -> list[str]:
         fields = line.rstrip("\n").split("\t")
         if len(fields) < 2:
             continue
-        tokens.extend(tok.strip() for tok in fields[1:])
+
+        for i in range(1, len(fields), 2):
+            a1 = fields[i].strip()
+            a2 = fields[i + 1].strip() if i + 1 < len(fields) else ""
+
+            if a1 and a1.lower() not in PLACEHOLDERS:
+                tokens.extend([a1, a1 if a2 == "-" else a2])
+
     return tokens
 
 
