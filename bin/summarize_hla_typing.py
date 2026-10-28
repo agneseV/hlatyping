@@ -186,7 +186,8 @@ def normalize(token: str) -> tuple[str, str, str, str] | None:
 
 def summarize_one(tokens: list[str]) -> dict[str, str]:
     """Build the four allele columns for one sample/tool from raw tokens.
-
+       Summarize HLA alleles with two fixed positions per locus.
+   
     Args:
         tokens: Raw allele tokens extracted from one tool's output.
 
@@ -194,22 +195,38 @@ def summarize_one(tokens: list[str]) -> dict[str, str]:
         Mapping of ``class_I``, ``class_I_2field``, ``class_II`` and
         ``class_II_2field`` to ``;``-joined alleles (``NA`` when a class is empty).
     """
-    buckets: dict[str, list[tuple[str, str, str]]] = {"I": [], "II": []}
+    buckets = {gene: [] for gene in GENE_ORDER}
+
     for tok in tokens:
         res = normalize(tok)
         if res is None:
             continue
+
         gene, hla_class, full, two_field = res
-        buckets[hla_class].append((gene, full, two_field))
+        buckets[gene].append((full, two_field))
 
     out = {}
-    for hla_class, label in (("I", "class_I"), ("II", "class_II")):
-        # One sort keeps the full and 2-field columns row-aligned.
-        items = sorted(buckets[hla_class], key=lambda x: (GENE_ORDER.get(x[0], 99), x[1]))
-        out[label] = ";".join(it[1] for it in items) if items else "NA"
-        out[f"{label}_2field"] = ";".join(it[2] for it in items) if items else "NA"
-    return out
 
+    for genes, label in (
+        (CLASS_I_ORDER, "class_I"),
+        (CLASS_II_ORDER, "class_II"),
+    ):
+        full_alleles = []
+        two_field_alleles = []
+
+        for gene in genes:
+            alleles = sorted(buckets[gene])
+
+            # Exactly two allele positions per locus
+            alleles = (alleles + [("", "")] * 2)[:2]
+
+            full_alleles.extend(a[0] for a in alleles)
+            two_field_alleles.extend(a[1] for a in alleles)
+
+        out[label] = ";".join(full_alleles)
+        out[f"{label}_2field"] = ";".join(two_field_alleles)
+
+    return out
 
 def parse_filename(path: str) -> tuple[str, str]:
     """Recover the sample and tool from a ``<sample>__<tool>.txt`` filename.
