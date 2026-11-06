@@ -17,7 +17,8 @@ include { SAMTOOLS_VIEW as SAMTOOLS_VIEW_HLA        } from '../../../modules/nf-
 include { SAMTOOLS_VIEW as SAMTOOLS_VIEW_UNMAPPED   } from '../../../modules/nf-core/samtools/view/main'
 include { SAMTOOLS_MERGE                            } from '../../../modules/nf-core/samtools/merge/main'
 include { SAMTOOLS_COLLATEFASTQ                     } from '../../../modules/nf-core/samtools/collatefastq/main'
-
+include { SAMTOOLS_BEDCOV                           } from '../../../modules/local/samtools/bedcov/main'
+include { COV_CHECK                                 } from '../../../modules/local/cov_check/main'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -34,6 +35,20 @@ workflow BAM_HLA_PREPROCESSING {
         .map { meta, files -> [meta, files instanceof List ? files[0] : files] }
         .set { ch_bam_input }
 
+    // Detect an existing index alongside each original input BAM
+    ch_existing_bai = ch_bam_input.map { meta, bam ->
+
+        def candidates = [
+            file("${bam}.bai"),
+            file(bam.toString().replaceFirst(/\.bam$/, '.bai'))
+        ]
+
+        def bai = candidates.find { it.exists() }
+
+        tuple(meta.id, bai ?: [])
+    }
+
+
     // Determine endedness because SAMTOOLS_COLLATEFASTQ uses meta.single_end.
     CHECK_PAIRED(ch_bam_input)
     CHECK_PAIRED.out.reads
@@ -42,11 +57,29 @@ workflow BAM_HLA_PREPROCESSING {
         }
         .set { ch_bam_pe_corrected }
 
-    // --fetch-pairs (-P) requires an indexed regular BAM file.
-    SAMTOOLS_INDEX(ch_bam_pe_corrected)
-    ch_bam_pe_corrected
-        .join(SAMTOOLS_INDEX.out.index)
-        .set { ch_bam_indexed }
+    // Match the corrected BAM metadata to the original index
+    ch_bam_with_bai = ch_bam_pe_corrected
+        .map { meta, bam -> tuple(meta.id, meta, bam) }
+        .join(ch_existing_bai)
+        .map { id, meta, bam, bai -> tuple(meta, bam, bai) }
+
+    // Separate indexed and non-indexed BAMs
+    ch_index_branch = ch_bam_with_bai.branch { meta, bam, bai ->
+        indexed: bai != []
+        needs_index: true
+    }
+
+    // Index only BAMs without an existing index
+    ch_to_index = ch_index_branch.needs_index
+        .map { meta, bam, bai -> tuple(meta, bam) }
+
+    SAMTOOLS_INDEX(ch_to_index)
+
+    // Combine existing and newly generated indexes
+    ch_bam_indexed = ch_index_branch.indexed
+        .mix(
+            ch_to_index.join(SAMTOOLS_INDEX.out.index)
+        )
 
     // HLA/MHC-overlapping primary, non-duplicate reads plus their mates.
     // -L is supplied by the SAMTOOLS_VIEW bed input; filtering flags are set in modules.config.
@@ -88,11 +121,29 @@ workflow BAM_HLA_PREPROCESSING {
         interleave,
     )
 
+
+    // Exon coverage test
+
+    ch_hlabed = Channel.value(
+        file(params.hla_exon_bed, checkIfExists: true)
+    )
+
+    SAMTOOLS_BEDCOV(
+        ch_bam_indexed,
+        ch_hlabed
+    )
+
+    COV_CHECK(
+    SAMTOOLS_BEDCOV.out.coverage
+    )
+
     emit:
-    reads       = SAMTOOLS_COLLATEFASTQ.out.fastq
-    singleton   = SAMTOOLS_COLLATEFASTQ.out.fastq_singleton
-    other       = SAMTOOLS_COLLATEFASTQ.out.fastq_other
-    merged_bam  = SAMTOOLS_MERGE.out.bam
-    mhc_bam     = SAMTOOLS_VIEW_HLA.out.bam
-    unmapped_bam = SAMTOOLS_VIEW_UNMAPPED.out.bam
+    reads         = SAMTOOLS_COLLATEFASTQ.out.fastq
+    singleton     = SAMTOOLS_COLLATEFASTQ.out.fastq_singleton
+    other         = SAMTOOLS_COLLATEFASTQ.out.fastq_other
+    merged_bam    = SAMTOOLS_MERGE.out.bam
+    mhc_bam       = SAMTOOLS_VIEW_HLA.out.bam
+    unmapped_bam  = SAMTOOLS_VIEW_UNMAPPED.out.bam
+    cov_check     = COV_CHECK.out.note    
+
 }

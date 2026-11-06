@@ -1,0 +1,38 @@
+name: samtools_bedcov
+description: Calculate summed and mean depth for BED4 exon intervals in an indexed BAM.
+keywords:
+  - samtools
+  - bedcov
+  - coverage
+  - exon
+tools:
+  - samtools:
+      description: Tools for manipulating next-generation sequencing data
+      homepage: http://www.htslib.org/
+      documentation: http://www.htslib.org/doc/samtools-bedcov.html
+      licence: [MIT]
+input:
+  - - meta:
+        type: map
+        description: Sample metadata containing an id key.
+    - bam:
+        type: file
+        description: Coordinate-sorted BAM file.
+        pattern: '*.bam'
+    - bai:
+        type: file
+        description: BAM index.
+        pattern: '*.bai'
+  - bed:
+      type: file
+      description: BED4 intervals (chrom, 0-based start, end, region name).
+      pattern: '*.bed'
+output:
+  - coverage:
+      - meta:
+          type: map
+          description: Sample metadata.
+      - '*.exon_coverage.tsv':
+          type: file
+          description: Per-interval depth sum and mean depth.
+          pattern: '*.exon_coverage.tsv'

@@ -1,6 +1,6 @@
 process SAMTOOLS_VIEW {
     tag "${meta.id}"
-    label 'process_low'
+    label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -58,10 +58,10 @@ process SAMTOOLS_VIEW {
         }
     }
     """
-    # Note: --threads value represents *additional* CPUs to allocate (total CPUs = 1 + --threads).
+    # Note: --threads value represents *additional* CPUs to allocate.
     samtools \\
         view \\
-        --threads ${task.cpus - 1} \\
+        --threads ${task.cpus} \\
         ${reference} \\
         ${readnames} \\
         ${bedfile} \\

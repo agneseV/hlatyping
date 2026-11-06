@@ -78,6 +78,7 @@ workflow HLATYPING {
     ch_versions = channel.empty()
     ch_multiqc_files = channel.empty()
     ch_typings = channel.empty()
+    ch_cov_checks = channel.value([])
 
     // Split by input type (bam/fastq/tsv)
     ch_samplesheet
@@ -120,6 +121,11 @@ workflow HLATYPING {
         )
 
         ch_bam_fastq = BAM_HLA_PREPROCESSING.out.reads
+
+        ch_cov_checks = BAM_HLA_PREPROCESSING.out.cov_check
+            .map { meta, note -> note }
+            .collect()
+
     }
     else {
 
@@ -372,7 +378,10 @@ workflow HLATYPING {
         .collect()
         .set { ch_summarize_in }
 
-    SUMMARIZE_TYPING(ch_summarize_in)
+    SUMMARIZE_TYPING(
+        ch_summarize_in,
+        ch_cov_checks,
+    )
 
     //
     // Collate and save software versions

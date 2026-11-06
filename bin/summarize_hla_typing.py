@@ -248,8 +248,14 @@ def main() -> None:
     """Parse CLI arguments and write the harmonized typing TSV."""
     ap = argparse.ArgumentParser(description="Harmonize HLA typing outputs into one TSV")
     ap.add_argument("inputs", nargs="+", help="<sample>__<tool>.txt result files")
+    ap.add_argument("--cov-check", nargs="*", default=[], help="Sample-specific *.cov_check.txt files")
     ap.add_argument("-o", "--output", default="hlatyping_results.tsv")
     args = ap.parse_args()
+
+    cov_notes = {
+        Path(p).name.removesuffix(".cov_check.txt"): Path(p).read_text().strip()
+        for p in args.cov_check
+    }
 
     rows = []
     for path in args.inputs:
@@ -258,11 +264,16 @@ def main() -> None:
             sys.stderr.write(f"WARNING: unknown tool '{tool}' for {path}; skipping\n")
             continue
         cols = summarize_one(EXTRACTORS[tool](path))
-        rows.append({"sample": sample, "predictor": tool, **cols})
+        rows.append({
+            "sample": sample,
+            "predictor": tool,
+            **cols,
+            "cov_check": cov_notes.get(sample, "NA"),
+        })
 
     rows.sort(key=lambda r: (r["sample"], TOOLS.index(r["predictor"]) if r["predictor"] in TOOLS else 99))
 
-    fieldnames = ["sample", "predictor", "class_I", "class_I_2field", "class_II", "class_II_2field"]
+    fieldnames = ["sample", "predictor", "class_I", "class_I_2field", "class_II", "class_II_2field", "cov_check"]
     with open(args.output, "w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames, delimiter="\t", lineterminator="\n")
         writer.writeheader()

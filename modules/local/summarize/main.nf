@@ -8,6 +8,7 @@ process SUMMARIZE_TYPING {
 
     input:
     path(typings)
+    path(cov_checks)
 
     output:
     path("hlatyping_results.tsv"), emit: summary
@@ -19,9 +20,10 @@ process SUMMARIZE_TYPING {
     script:
     def args = task.ext.args ?: ''
     """
-    summarize_hla_typing.py \\
-        ${args} \\
-        ${typings} \\
+    summarize_hla_typing.py \
+        ${args} \
+        ${typings} \
+        --cov-check ${cov_checks} \
         -o hlatyping_results.tsv
     """
 

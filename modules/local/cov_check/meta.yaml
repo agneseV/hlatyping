@@ -1,0 +1,29 @@
+name: cov_check
+principle: Compute per-gene mean exon depth and emit one HLA coverage note
+keywords:
+  - hla
+  - coverage
+  - quality-control
+input:
+  - - meta:
+        type: map
+        description: Sample metadata, including id
+    - exon_coverage:
+        type: file
+        description: Six-column SAMTOOLS_BEDCOV exon coverage TSV
+        pattern: "*.exon_coverage.tsv"
+output:
+  - note:
+      - meta:
+          type: map
+          description: Sample metadata
+      - "*.cov_check.txt":
+          type: file
+          description: One-line coverage status
+  - gene_coverage:
+      - meta:
+          type: map
+          description: Sample metadata
+      - "*.gene_coverage.tsv":
+          type: file
+          description: Per-gene mean exon coverage and status
